@@ -31,16 +31,17 @@ void addNewAnimalsToFile(Animals *head, char *fname);
 Animals *insertAnimals(Animals *head, AnimalsData animal);
 Animals *insertAnimal();
 Animals *createList();
+Animals *deleteAnimalFromList(Animals *head, char animalType[], int count);
 void printAnimals(Animals *head);
 void freeList(Animals *head);
-int getCountOfAnimal(char animalType[]);
-void *addNewAnimal(void* p_client_socket);
+
 int check(int exp, const char *msg);
+int getCountOfAnimal(char animalType[]);
 void *handleCountOfAnimals(void* p_client_socket);
-void insertNewAnimal(char animalType[], int animalCount);
+void *addNewAnimal(void* p_client_socket);
+int insertNewAnimal(char animalType[], int animalCount);
 void *deleteAnimalThread(void* p_client_socket);
-void deleteAnimal(char animalType[], int count);
-Animals *deleteAnimalFromList(Animals *head, char animalType[], int count);
+int deleteAnimal(char animalType[], int count);
 
 int main() {
 	int server_socket, client_socket, addr_size;
@@ -143,19 +144,79 @@ void *deleteAnimalThread(void* p_client_socket) {
 	printf("Animal count: %d\n", animalCount);
     printf("To delete: %d %ss\n", animalCount, animalType);
 
-    deleteAnimal(animalType, animalCount);
+    int isAnimalDeleted = deleteAnimal(animalType, animalCount);
 
     bzero(buffer, BUFSIZE);
 
-    char lastMessage[] = "Animal successfull deleted";
+    switch (isAnimalDeleted) {
+        case 0: {
+            char successMessage[] = "Animal successfull deleted";
 
-    bytesSend = send(client_socket, &lastMessage, sizeof(lastMessage), 0);
+            bytesSend = send(client_socket, &successMessage, sizeof(successMessage), 0);
 
-    printf("Bytes send: %zu\n", bytesSend);
+            printf("Bytes send: %zu\n", bytesSend);
+            break;
+        }    
+        case 1: {
+            char firstErrorMessage[] = "There are no animals that can be deleted from this type!";
+            
+            bytesSend = send(client_socket, &firstErrorMessage, sizeof(firstErrorMessage), 0);
+
+            printf("Bytes send: %zu\n", bytesSend);
+            break;
+        }
+        case 2: {
+            char secondErrorMessage[] = "The number of animals to be deleted is greater than the actual number of animals of this type!";
+
+            bytesSend = send(client_socket, &secondErrorMessage, sizeof(secondErrorMessage), 0);
+
+            printf("Bytes send: %zu\n", bytesSend);
+            break;
+        }
+        case 3: {
+            char thirdErrorMessage[] = "There is a problem with animals deleting!";
+
+            bytesSend = send(client_socket, &thirdErrorMessage, sizeof(thirdErrorMessage), 0);
+
+            printf("Bytes send: %zu\n", bytesSend);
+            break;
+        }
+    }
 
 	close(client_socket);
 	printf("Closing connection!\n");
 	return NULL;
+}
+
+int deleteAnimal(char animalType[], int count) {
+    if (count == 0) {
+        return 3;
+    }
+    
+    int countOfAnimal = getCountOfAnimal(animalType);
+
+    if (countOfAnimal == 0) {
+        return 1;
+    } else if (countOfAnimal != 0 && countOfAnimal < count) {
+        return 2;
+    }
+
+    Animals *head = NULL;
+    head = readBinFile("Animals.bin");
+    head = deleteAnimalFromList(head, animalType, count);
+    writeBinFile(head, "Animals.bin");
+    
+    int finalCount = getCountOfAnimal(animalType);
+
+    if (finalCount == countOfAnimal - count) {
+        freeList(head);
+        head = NULL;
+        return 0;
+    }
+    
+    freeList(head);
+    head = NULL;
+    return 3;
 }
 
 void *addNewAnimal(void* p_client_socket) {
@@ -200,19 +261,53 @@ void *addNewAnimal(void* p_client_socket) {
 	printf("Animal count: %d\n", animalCount);
     printf("To insert: %d %ss\n", animalCount, animalType);
 
-    insertNewAnimal(animalType, animalCount);
+    int isInserted = insertNewAnimal(animalType, animalCount);
 
     bzero(buffer, BUFSIZE);
 
-    char lastMessage[] = "Animal successfull inserted";
+    if (isInserted == 0) {
+        char lastMessage[] = "Animal successfull inserted";
 
-    bytesSend = send(client_socket, &lastMessage, sizeof(lastMessage), 0);
+        bytesSend = send(client_socket, &lastMessage, sizeof(lastMessage), 0);
 
-    printf("Bytes send: %zu\n", bytesSend);
+        printf("Bytes send: %zu\n", bytesSend);
+    } else {
+        char errorMessage[] = "There is a problem with adding new animals!";
+
+        bytesSend = send(client_socket, &errorMessage, sizeof(errorMessage), 0);
+
+        printf("Bytes send: %zu\n", bytesSend);
+    }
 
 	close(client_socket);
 	printf("Closing connection!\n");
 	return NULL;
+}
+
+int insertNewAnimal(char animalType[], int animalCount) {
+    if (animalCount == 0) {
+        return 1;
+    }
+    
+    int countBeforeInsert = getCountOfAnimal(animalType);
+
+    for (int i = 0; i < animalCount; i++) {
+        Animals *head = NULL;
+        head = insertAnimal(animalType);
+        addNewAnimalsToFile(head, "Animals.bin");
+        printAnimals(head);
+
+        freeList(head);
+        head = NULL;
+    }
+
+    int countAfterInsert = getCountOfAnimal(animalType);
+
+    if (countAfterInsert != countBeforeInsert + animalCount) {
+        return 1;
+    }
+    
+    return 0;
 }
 
 void *handleCountOfAnimals(void* p_client_socket) {
@@ -248,35 +343,6 @@ void *handleCountOfAnimals(void* p_client_socket) {
 	return NULL;
 }
 
-int check(int exp, const char *msg) {
-    if (exp == SOCKETERROR) {
-        perror(msg);
-        exit(1);
-    }
-    return exp;
-}
-
-void deleteAnimal(char animalType[], int count) {
-    Animals *head = NULL;
-    head = readBinFile("Animals.bin");
-    head = deleteAnimalFromList(head, animalType, count);
-    writeBinFile(head, "Animals.bin");
-    freeList(head);
-    head = NULL;
-}
-
-void insertNewAnimal(char animalType[], int animalCount) {
-    for (int i = 0; i < animalCount; i++) {
-        Animals *head = NULL;
-        head = insertAnimal(animalType);
-        addNewAnimalsToFile(head, "Animals.bin");
-        printAnimals(head);
-
-        freeList(head);
-        head = NULL;
-    }
-}
-
 int getCountOfAnimal(char animalType[]) {
     Animals *p;
     Animals *head;
@@ -296,6 +362,14 @@ int getCountOfAnimal(char animalType[]) {
     head = NULL;
 
     return counter;
+}
+
+int check(int exp, const char *msg) {
+    if (exp == SOCKETERROR) {
+        perror(msg);
+        exit(1);
+    }
+    return exp;
 }
 
 Animals *deleteAnimalFromList(Animals *head, char animalType[], int count) {

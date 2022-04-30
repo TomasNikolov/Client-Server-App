@@ -36,7 +36,7 @@ int main() {
       
         if(choice < 1 || choice > 4) {
             perror("Wrong choice!!!");
-            return 0;
+            continue;
         }
 
         if (choice == 4) {
@@ -148,7 +148,7 @@ void deleteAnimal(int serverSocket) {
  
     bytesRead = read(serverSocket, &message, sizeof(buffer));
     printf("Bytes read: %zu\n", bytesRead);
-	printf("%s\n", message);
+	printf("\n\n%s\n", message);
 }
 
 void addNewAnimal(int serverSocket) {
@@ -190,7 +190,7 @@ void addNewAnimal(int serverSocket) {
  
     bytesRead = read(serverSocket, &message, sizeof(buffer));
     printf("Bytes read: %zu\n", bytesRead);
-	printf("%s\n", message);
+	printf("\n\n%s\n", message);
 }
 
 void getCountOfAnimals(int serverSocket) {
@@ -218,5 +218,5 @@ void getCountOfAnimals(int serverSocket) {
 
     bytesRead = read(serverSocket, &countOfAnimal, sizeof(buffer));
     printf("Bytes read: %zu\n", bytesRead);
-	printf("Count of %s is %d\n", typeOfAnimal, countOfAnimal);
+	printf("\n\nCount of %s is %d\n", typeOfAnimal, countOfAnimal);
 }
